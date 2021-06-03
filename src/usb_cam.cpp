@@ -805,7 +805,7 @@ bool UsbCam::open_device(void)
 
 bool UsbCam::start(
   const std::string & dev, io_method io_method, pixel_format pixel_format,
-  int image_width, int image_height, int framerate)
+  int image_width, int image_height, int framerate, double timestamp_offset_ms)
 {
   camera_dev_ = dev;
 
@@ -832,6 +832,8 @@ bool UsbCam::start(
     RCLCPP_ERROR(rclcpp::get_logger("usb_cam"), "Unknown pixel format.");
     return false;  // (EXIT_FAILURE);
   }
+
+  timestamp_offset_ms_ = timestamp_offset_ms;
 
   // TODO(lucasw) throw exceptions instead of return value checking
   if (!open_device()) {
@@ -901,7 +903,7 @@ bool UsbCam::get_image(
   //  "stamp " << image_->stamp.sec << " " << image_->stamp.nanosec
   //   << " to " << stamp.sec << " " << stamp.nanosec);
   // stamp the image
-  stamp = image_->stamp;
+  stamp = rclcpp::Time(image_->stamp) - rclcpp::Duration::from_seconds(timestamp_offset_ms_ / 1000.0);
   // fill in the info
   height = image_->height;
   width = image_->width;

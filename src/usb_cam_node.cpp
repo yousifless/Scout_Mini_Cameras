@@ -65,6 +65,7 @@ UsbCamNode::UsbCamNode(const rclcpp::NodeOptions & node_options)
   this->declare_parameter("io_method", "mmap");
   this->declare_parameter("pixel_format", "yuyv");
   this->declare_parameter("video_device", "/dev/video0");
+  this->declare_parameter("timestamp_offset_ms", 0.0); // [ms]
 
   get_params();
   init();
@@ -135,7 +136,7 @@ void UsbCamNode::init()
   // start the camera
   cam_.start(
     video_device_name_.c_str(), io_method, pixel_format, image_width_,
-    image_height_, framerate_);
+    image_height_, framerate_, timestamp_offset_ms_);
   cam_.get_formats();
 
   // TODO(lucasw) should this check a little faster than expected frame rate?
@@ -153,7 +154,8 @@ void UsbCamNode::get_params()
 
   for (auto & parameter : parameters_client->get_parameters(
       {"camera_name", "camera_info_url", "frame_id", "framerate",
-        "image_height", "image_width", "io_method", "pixel_format", "video_device"}))
+        "image_height", "image_width", "io_method", "pixel_format",
+        "video_device", "timestamp_offset_ms"}))
   {
     if (parameter.get_name() == "camera_name") {
       RCLCPP_INFO(this->get_logger(), "camera_name value: %s", parameter.value_to_string().c_str());
@@ -175,6 +177,8 @@ void UsbCamNode::get_params()
       pixel_format_name_ = parameter.value_to_string();
     } else if (parameter.get_name() == "video_device") {
       video_device_name_ = parameter.value_to_string();
+    } else if (parameter.get_name() == "timestamp_offset_ms") {
+      timestamp_offset_ms_ = parameter.as_double();
     } else {
       RCLCPP_WARN(this->get_logger(), "Invalid parameter name: %s", parameter.get_name());
     }

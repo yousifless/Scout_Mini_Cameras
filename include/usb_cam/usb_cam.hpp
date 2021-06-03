@@ -87,7 +87,7 @@ public:
   // start camera
   bool start(
     const std::string & dev, io_method io, pixel_format pf,
-    int image_width, int image_height, int framerate);
+    int image_width, int image_height, int framerate, double timestamp_offset_ms);
   // shutdown camera
   bool shutdown(void);
 
@@ -165,6 +165,7 @@ private:
   int avframe_rgb_size_;
   struct SwsContext * video_sws_;
   camera_image_t * image_;
+  double timestamp_offset_ms_;
 };
 
 }  // namespace usb_cam
