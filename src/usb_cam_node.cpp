@@ -66,6 +66,7 @@ UsbCamNode::UsbCamNode(const rclcpp::NodeOptions & node_options)
   this->declare_parameter("pixel_format", "yuyv");
   this->declare_parameter("video_device", "/dev/video0");
   this->declare_parameter("timestamp_offset_ms", 0.0); // [ms]
+  this->declare_parameter("publish_rate", 30.0); // [Hz]
 
   get_params();
   init();
@@ -141,11 +142,13 @@ void UsbCamNode::init()
 
   // TODO(lucasw) should this check a little faster than expected frame rate?
   // TODO(lucasw) how to do small than ms, or fractional ms- std::chrono::nanoseconds?
-  const int period_ms = 1000.0 / framerate_;
-  timer_ = this->create_wall_timer(
-    std::chrono::milliseconds(static_cast<int64_t>(period_ms)),
-    std::bind(&UsbCamNode::update, this));
-  RCLCPP_INFO_STREAM(this->get_logger(), "starting timer " << period_ms);
+  // start grab timer
+  const auto grab_period = rclcpp::Rate(framerate_).period();
+  image_grab_timer_ = this->create_wall_timer(grab_period, std::bind(&UsbCamNode::update, this));
+  // start publish timer
+  image_prev_time_ = this->now();
+  const auto publish_period = rclcpp::Rate(publish_rate_).period();
+  image_pub_timer_ = this->create_wall_timer(publish_period, std::bind(&UsbCamNode::send_image, this));
 }
 
 void UsbCamNode::get_params()
@@ -155,7 +158,7 @@ void UsbCamNode::get_params()
   for (auto & parameter : parameters_client->get_parameters(
       {"camera_name", "camera_info_url", "frame_id", "framerate",
         "image_height", "image_width", "io_method", "pixel_format",
-        "video_device", "timestamp_offset_ms"}))
+        "video_device", "timestamp_offset_ms", "publish_rate"}))
   {
     if (parameter.get_name() == "camera_name") {
       RCLCPP_INFO(this->get_logger(), "camera_name value: %s", parameter.value_to_string().c_str());
@@ -179,13 +182,29 @@ void UsbCamNode::get_params()
       video_device_name_ = parameter.value_to_string();
     } else if (parameter.get_name() == "timestamp_offset_ms") {
       timestamp_offset_ms_ = parameter.as_double();
+    } else if (parameter.get_name() == "publish_rate") {
+      publish_rate_ = parameter.as_double();
     } else {
       RCLCPP_WARN(this->get_logger(), "Invalid parameter name: %s", parameter.get_name());
     }
   }
 }
 
-bool UsbCamNode::take_and_send_image()
+void UsbCamNode::send_image()
+{
+  if ((rclcpp::Time(img_->header.stamp) - image_prev_time_).seconds() > 1e-5)
+  {
+    // INFO(img_->data.size() << " " << img_->width << " " << img_->height << " " << img_->step);
+    auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
+    ci->header = img_->header;
+    image_pub_->publish(*img_, *ci);
+  } else {
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 3000,
+      "Skip publish! V4L frame rate = %d, Publish rate = %.1f",
+      framerate_, publish_rate_);
+  }
+}
+bool UsbCamNode::take_image()
 {
   // grab the image
   if (!cam_.get_image(
@@ -195,11 +214,6 @@ bool UsbCamNode::take_and_send_image()
     RCLCPP_ERROR(this->get_logger(), "grab failed");
     return false;
   }
-
-  // INFO(img_->data.size() << " " << img_->width << " " << img_->height << " " << img_->step);
-  auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
-  ci->header = img_->header;
-  image_pub_->publish(*img_, *ci);
   return true;
 }
 
@@ -209,7 +223,7 @@ void UsbCamNode::update()
     // If the camera exposure longer higher than the framerate period
     // then that caps the framerate.
     // auto t0 = now();
-    if (!take_and_send_image()) {
+    if (!take_image()) {
       RCLCPP_WARN(this->get_logger(), "USB camera did not respond in time.");
     }
     // auto diff = now() - t0;

@@ -62,7 +62,8 @@ public:
   void init();
   void get_params();
   void update();
-  bool take_and_send_image();
+  void send_image();
+  bool take_image();
 
   void service_capture(
     const std::shared_ptr<rmw_request_id_t> request_header,
@@ -89,6 +90,7 @@ public:
   int image_height_;
   int framerate_;
   double timestamp_offset_ms_;
+  double publish_rate_;
 
   // TODO(lucasw) use v4l2ucp for these?
   // int exposure_, brightness_, contrast_, saturation_, sharpness_, focus_,
@@ -99,7 +101,9 @@ public:
   std::string camera_info_url_;
   std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
 
-  rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::TimerBase::SharedPtr image_grab_timer_;
+  rclcpp::TimerBase::SharedPtr image_pub_timer_;
+  rclcpp::Time image_prev_time_;
 
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr service_capture_;
 };
