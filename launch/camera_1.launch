@@ -1,0 +1,6 @@
+<launch>
+  <param name="camera_1_config" command="load" value="$(find usb_cam)/config/camera_1.yaml" />
+  <node pkg="usb_cam" type="usb_cam_node" name="usb_cam_1" output="screen">
+    <rosparam command="load" file="$(find usb_cam)/config/camera_1.yaml" />
+  </node>
+</launch>

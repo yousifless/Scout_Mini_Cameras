@@ -1,0 +1,4 @@
+<launch>
+  <include file="$(find usb_cam)/launch/camera_1.launch" />
+  <include file="$(find usb_cam)/launch/camera_2.launch" />
+</launch>
