@@ -1,4 +1,4 @@
-# usb_cam [![ROS2 CI](https://github.com/ros-drivers/usb_cam/actions/workflows/build_test.yml/badge.svg)](https://github.com/ros-drivers/usb_cam/actions/workflows/build_test.yml)
+# ScoutMiniCameras [![ROS2 CI](https://github.com/ros-drivers/usb_cam/actions/workflows/build_test.yml/badge.svg)](https://github.com/ros-drivers/usb_cam/actions/workflows/build_test.yml)
 
 ## A ROS2 Driver for V4L USB Cameras
 This package is based off of V4L devices specifically instead of just UVC.
